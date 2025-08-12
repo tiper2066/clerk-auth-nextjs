@@ -24,7 +24,11 @@ export default function RootLayout({
     children: React.ReactNode;
 }>) {
     return (
-        <ClerkProvider>
+        <ClerkProvider
+            afterSignOutUrl='/verified' // 로그아웃 한 후에 리다이렉트 설정
+            signInUrl='/login' // 로그인 페이지 설정
+            signUpUrl='/signup' // 회원가입 페이지 설정
+        >
             <html lang='en'>
                 <body
                     className={`${geistSans.variable} ${geistMono.variable} antialiased`}

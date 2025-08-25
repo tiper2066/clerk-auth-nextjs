@@ -1,6 +1,8 @@
 'use client';
 
 import { useSignIn, useSignUp } from '@clerk/nextjs'; //  Clerk useSignUp 와 useSignIn 추가
+import { isClerkAPIResponseError } from '@clerk/nextjs/errors'; //  Clerk API 에러 여부
+import { ClerkAPIResponseError } from '@clerk/shared/error'; //  Clerk API 에러 객체
 import { useRouter } from 'next/navigation'; //  라우터
 import React, { useState } from 'react';
 
@@ -9,6 +11,10 @@ const SignUpAndLogin = () => {
     const { isLoaded, signIn, setActive } = useSignIn(); //  useSignIn 관련 메소드
     const [verify, setVerify] = useState(false); //  유효성 검증여부 상태 변수
     const [code, setCode] = useState(''); //  Clerk 데이터를 받아 확인할 경우 사용함
+    //  에러 메시지 상태 변수
+    const [errorMsg, setErrorMsg] = useState<
+        ClerkAPIResponseError['errors'] | null // ClerkAPIResponseError 객체 타입 또는 null 로 설정함
+    >(null);
     const router = useRouter(); //  라우터 객체 생성
 
     const [formType, setFormType] = useState('signup'); // login or signup 폼 구분 상태변수
@@ -71,7 +77,25 @@ const SignUpAndLogin = () => {
                 console.error();
             }
         } catch (error) {
-            console.log(error);
+            // ************************************************************************ 로그인 실행 시 에러 커스터마이징하게 처리하기
+            if (isClerkAPIResponseError(error)) {
+                // 에러가 비밀번호 필드에서 발생되고, 에러 코드가 code 가 form_password_incorrect 일 경우
+                if (
+                    error.errors[0].meta?.paramName === 'password' &&
+                    error.errors[0].code === 'form_password_incorrect'
+                ) {
+                    //  비밀번호 필드에 대한 에러 메시지를 커스텀하게 정의하고, errorMsg 상태변수에 저장
+                    setErrorMsg([
+                        {
+                            ...error.errors[0],
+                            longMessage: 'Password Is Incorrect',
+                        },
+                    ]); // 에러 객체에서 에러 메시지 부분을 errorMsg 상태변수에 저장
+                } else {
+                    setErrorMsg(error.errors); // 에러 객체에서 에러 메시지 부분을 errorMsg 상태변수에 저장
+                }
+            }
+            console.error(JSON.stringify(error, null, 2)); // 발생한 에러 객체 전체를 콘솔에 출력
         }
     };
 
@@ -165,7 +189,22 @@ const SignUpAndLogin = () => {
                         <button className='relative z-5 w-full mt-4 rounded-lg bg-blue-600 py-3 font-bold text-white hover:bg-blue-600/90 hover:cursor-pointer'>
                             Login
                         </button>
+                        {/* ---  에러 메시지 출력 --- */}
+                        {errorMsg && (
+                            <div className='px-4 py-2 bg-red-500 w-full mt-3 rounded-lg'>
+                                <p className='text-red-200 text-sm'>Error:</p>
+                                {errorMsg.map((error: any, index: number) => (
+                                    <p
+                                        key={index}
+                                        className='text-white text-sm'
+                                    >
+                                        {error.longMessage}
+                                    </p>
+                                ))}
+                            </div>
+                        )}
                     </form>
+
                     {/* --- 분리 패널 --- */}
                     <div className='absolute w-0 top-0 left-[45%] h-full border-t-170 border-r-70 border-b-168 border-l-70 border-t-gray-900 border-r-white border-b-white border-l-gray-900 z-1'></div>
                     {/* --- Login title --- */}

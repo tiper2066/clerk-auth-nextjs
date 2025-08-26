@@ -1,10 +1,11 @@
 'use client';
 
-import { useSignIn } from '@clerk/nextjs'; //  Clerk useSignIn 추가
+import { useAuth, useSignIn } from '@clerk/nextjs'; //  Clerk useSignIn, useAuth 추가
 import { useRouter } from 'next/navigation'; //  라우터
 import { useState } from 'react';
 
 const PasswordResetPage = () => {
+    const { isSignedIn } = useAuth(); // clerk 로그인 상태 여부 체크
     const { isLoaded, signIn, setActive } = useSignIn(); //  useSignIn 관련 메소드
     const [email, setEmail] = useState(''); //  email 상태변수
     const [password, setPassword] = useState(''); //  password 상태변수
@@ -17,8 +18,16 @@ const PasswordResetPage = () => {
         e.preventDefault();
 
         try {
+            await signIn
+                ?.create({
+                    strategy: 'reset_password_email_code', // '이메일 코드'로 비번리셋 처리
+                    identifier: email, // 이메일 코드 입력 요소
+                })
+                .then(() => {
+                    setSuccessfulCreation(true); // 이메일 검증이 완료되면 true로 변경
+                });
         } catch (error) {
-            // console.error(JSON.stringify(error, null, 2));
+            console.error(JSON.stringify(error, null, 2));
         }
     };
 
@@ -27,10 +36,28 @@ const PasswordResetPage = () => {
         e.preventDefault();
 
         try {
+            await signIn
+                ?.attemptFirstFactor({
+                    strategy: 'reset_password_email_code', // '이메일 코드'로 비번리셋 처리
+                    code, // 이메일로 전송된 인증코드번호
+                    password, // 새로 설정한 비밀번호
+                })
+                .then((result) => {
+                    // 응답상태가 설공(complete) 이면...
+                    if (result.status === 'complete') {
+                        setActive({ session: result.createdSessionId }); // 자동로그인을 위한 사용자 세션을 생성함
+                        router.push('/dashboard'); // 자동로그인되기 때문에 대시보드 페이지로 이동
+                    }
+                });
         } catch (error) {
-            //
+            console.error(JSON.stringify(error, null, 2));
         }
     };
+
+    // 이미 로그인 상태라면 대시보드로 리다이렉트함 (비번 리셋 기능은 로그인 상태가 아니어야 함)
+    if (isSignedIn) {
+        router.push('/dashboard');
+    }
 
     if (!isLoaded) return; // 아직 clerk 정보 검증 결과가 반환되지 않었다면.. 아무것도 안함
 
@@ -41,13 +68,13 @@ const PasswordResetPage = () => {
                 <div className='flex relative w-full min-w-[700px] max-w-[800px] h-[340px] space-y-5 rounded-lg border-1 border-gray-200 shadow-xl mx-auto'>
                     {/* --- Form 영역 --- */}
                     <form
-                        // successfulCreation true면 이메일이 검증 완료기에 비밀번호 리셋 함수 실행, false 면 이메일 검증 함수 실행
+                        // successfulCreation true면 이메일이 검증 완료이므로 비밀번호 리셋 함수 실행, false 면 이메일 검증 함수 실행
                         onSubmit={
                             successfulCreation ? handleReset : verifyEmail
                         }
                         className='flex-1 content-center max-w-[50%] h-full rounded-l-lg py-10 px-10 bg-gray-900'
                     >
-                        {/* ----------------------- 가입 검증이 안된 경우 UI: 이메일과 검증 버튼 ----------------------- */}
+                        {/* ----------------------- 가입 검증이 안된 경우: 이메일과 검증 버튼 UI ----------------------- */}
                         {!successfulCreation && (
                             <>
                                 <div className='relative mt-2 w-full z-2'>
@@ -55,6 +82,7 @@ const PasswordResetPage = () => {
                                         type='email'
                                         name='identifier'
                                         placeholder=''
+                                        value={email}
                                         onChange={(e) =>
                                             setEmail(e.target.value)
                                         }
@@ -72,7 +100,7 @@ const PasswordResetPage = () => {
                                 </button>
                             </>
                         )}
-                        {/* ----------------------- 가입 검증된 경우 UI: 비번, code 필드와 비밀번호 리셋 버튼 ----------------------- */}
+                        {/* ----------------------- 가입 검증된 경우: 비번, code 필드와 비밀번호 리셋 버튼 UI ----------------------- */}
                         {successfulCreation && (
                             <>
                                 <div className='relative mt-2 w-full z-2'>
@@ -80,6 +108,7 @@ const PasswordResetPage = () => {
                                         type='password'
                                         name='password'
                                         placeholder=''
+                                        value={password}
                                         onChange={(e) =>
                                             setPassword(e.target.value)
                                         }
@@ -123,7 +152,9 @@ const PasswordResetPage = () => {
                     <div className='flex items-center justify-center w-[50%] h-full py-10 px-5 rounded-lg bg-white'>
                         <div className='flex flex-col mx-auto'>
                             <h1 className='text-3xl text-center text-gray-800 font-bold mb-2'>
-                                Reset Password
+                                Reset
+                                <br />
+                                Password
                             </h1>
                         </div>
                     </div>

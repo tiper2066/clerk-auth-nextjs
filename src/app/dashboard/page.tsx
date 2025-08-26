@@ -1,4 +1,5 @@
 import { UserButton } from '@clerk/nextjs'; //  사용자 계정 아바타 메뉴
+import Link from 'next/link';
 
 const DashboardPage = () => {
     return (
@@ -16,7 +17,15 @@ const DashboardPage = () => {
                             </div>
                         </div>
                         {/* ----  사용자 계정 아바타 메뉴 ---- */}
-                        <UserButton />
+                        <div className='flex items-center justify-center gap-2'>
+                            <Link
+                                href='/dashboard/profile'
+                                className='rounded-lg bg-blue-600 px-3 py-2 font-medium text-white hover:bg-blue-600/90 hover:cursor-pointer'
+                            >
+                                Custom Profile Update
+                            </Link>
+                            <UserButton />
+                        </div>
                     </div>
                 </div>
             </nav>

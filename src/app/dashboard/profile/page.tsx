@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useUser } from '@clerk/nextjs'; // clerk user check
 import Image from 'next/image'; // next.js image 컴포넌트
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation'; //  useRouter 가져옴
 
 type inputValuesType = {
     image: string | null; // Base64 문자열 또는 null
@@ -17,7 +18,8 @@ type inputValuesType = {
 
 const ProfileUpdatePage = () => {
     const { isLoaded, isSignedIn, user } = useUser(); // clerk user 및 isLoaded 정보 가져옴
-    console.log('user: ', user);
+    const router = useRouter(); //  라우터 객체 생성
+    // console.log('user: ', user);
 
     // 폼 요소 값을 위한 - 배열 객체 상태 변수 설정
     const [inputValues, setInputValues] = useState<inputValuesType>({
@@ -112,6 +114,7 @@ const ProfileUpdatePage = () => {
             }
 
             alert('프로필이 성공적으로 업데이트되었습니다!');
+            router.push('/dashboard'); //  dashboard로 이동
         } catch (error) {
             console.error('프로필 업데이트 중 오류 발생:', error);
             alert('프로필 업데이트에 실패했습니다. 다시 시도해주세요.');
@@ -138,13 +141,35 @@ const ProfileUpdatePage = () => {
         };
     };
 
+    //  드롭다운 이미지 이벤트 함수
+    const setImageOnDrop = (e: React.DragEvent<HTMLDivElement>) => {
+        e.preventDefault();
+        const file = e.dataTransfer.files[0]; // 드롭다운 이벤트 시 파일을 가져오기
+        // convertToBase64AndSetImage(file); // 이미지 파일을 base64로 변환하고 폼요소 배열에 저장
+        if (file && file.type.startsWith('image/')) {
+            // 이미지 파일인지 확인
+            convertToBase64AndSetImage(file); // Base64로 변환하여 inputValues에 저장
+
+            // input 요소의 files 속성 업데이트
+            const inputElement = document.getElementById(
+                'image'
+            ) as HTMLInputElement;
+            if (inputElement) {
+                const dataTransfer = new DataTransfer(); // 새로 가져온 이미지 데이터
+                dataTransfer.items.add(file); // 가져온 새 이미지 데이터를 추가함
+                inputElement.files = dataTransfer.files; // input 요소에 파일 설정
+            }
+        }
+    };
+
     // 입력 필드 값이 변경될 때마다 업데이트해서 폼 요소값을 담는 inputValue 배열에 추가함
     const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value, files } = e.target;
 
         if (name === 'image' && files?.[0]) {
-            convertToBase64AndSetImage(files[0]);
+            convertToBase64AndSetImage(files[0]); // 폼 요소가 이미지라면...
         } else {
+            // 폼 요소가 기타 문자열이라면...
             setInputValues((prev) => ({
                 ...prev,
                 [name]: value,
@@ -188,6 +213,18 @@ const ProfileUpdatePage = () => {
             <div className='w-2xl m-auto'>
                 <h1 className='text-3xl font-bold mb-4'>Update Profile</h1>
                 <form onSubmit={submitForm} className='flex flex-col'>
+                    {/*  Image Deop & Drop 영역 표시하기   */}
+                    {/* 사용자의 아바타 이미지 정보가 없다면.. 아무것도 표시하지 않음 */}
+                    {!inputValues.image && ''}
+
+                    {/* 사용자의 아바타 이미지 정보가 있다면.. 드롭앤드롭 영역을 표시함 */}
+                    <div
+                        className='bg-gray-100 flex justify-center items-center border-dashed border-1 border-gray-400 w-full min-h-[100px] rounded mb-3'
+                        onDrop={setImageOnDrop}
+                        onDragOver={(e) => e.preventDefault()}
+                    >
+                        Drop Image
+                    </div>
                     {/* ------------ Image 아바타 파일 업로드 영역  ------------ */}
                     <div className='flex justify-start items-center '>
                         <Image
@@ -208,7 +245,7 @@ const ProfileUpdatePage = () => {
                                 type='file'
                                 id='image'
                                 name='image'
-                                accept='image/*'
+                                accept='image/*' // 이미지 파일만 허용하도록하는 속성
                                 onChange={handleInput}
                                 className='min-w-0 w-[250px] ml-4 py-1.5 text-base text-gray-900 placeholder:text-gray-400 bg-white border-none rounded-md pl-3 outline-1 -outline-offset-1 outline-gray-300'
                             />
@@ -253,7 +290,7 @@ const ProfileUpdatePage = () => {
                             type='email'
                             className='block min-w-0 w-full grow py-1.5 text-base text-gray-900 placeholder:text-gray-400 bg-white border-none rounded-md pl-3 outline-1 -outline-offset-1 outline-gray-300'
                             name='email'
-                            placeholder='Enter Email'
+                            placeholder='Enter E-mail'
                             value={inputValues.email}
                             onChange={handleInput}
                             disabled // 이메일은 Clerk에서 별도로 관리
